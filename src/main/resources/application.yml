@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: grade-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/grade_db
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: grade-group
+
+server:
+  port: 8083
+
+auth-service:
+  url: http://localhost:8081
+academic-service:
+  url: http://localhost:8082
+
+jwt:
+  secret: mySecretKeyMustBeVeryLongAndSecureForJWT256Bit
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  paths-to-exclude:
+    - /ws/**
+  default-produces-media-type: application/json
