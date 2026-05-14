@@ -7,12 +7,12 @@ import org.example.gradeservice.client.AuthServiceClient;
 import org.example.gradeservice.dto.*;
 import org.example.gradeservice.entity.Grade;
 import org.example.gradeservice.exception.GradeNotFoundException;
-import org.example.gradeservice.exception.InvalidOperationException;
 import org.example.gradeservice.mapper.GradeMapper;
 import org.example.gradeservice.repository.GradeRepository;
 import org.example.gradeservice.util.GradeStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +26,8 @@ public class GradingService {
     private final GradeMapper gradeMapper;
     private final AuthServiceClient authClient;
     private final AcademicServiceClient academicClient;
+    private final ExternalDataService externalDataService;
+
 
 
 
@@ -33,6 +35,7 @@ public class GradingService {
     public GradeResponse updateActivity(ActivityScoreRequest req) {
         Grade grade = getOrCreate(req.getStudentId(), req.getSubjectId());
         grade.setActivity(req.getActivity());
+        recalculateGpa(req.getStudentId());
         return buildResponse(gradeRepository.save(grade));
     }
 
@@ -40,6 +43,7 @@ public class GradingService {
     public GradeResponse updateMidterm(MidtermScoreRequest req) {
         Grade grade = getOrCreate(req.getStudentId(), req.getSubjectId());
         grade.setMidterm(req.getMidterm());
+        recalculateGpa(req.getStudentId());
         return buildResponse(gradeRepository.save(grade));
     }
 
@@ -82,6 +86,16 @@ public class GradingService {
                 .map(this::buildResponse)
                 .collect(Collectors.toList());
     }
+    @Transactional
+    public List<GradeResponse> initializeGradesForGroup(Long subjectId, Long groupId) {
+        List<StudentDto> students = authClient.getStudentsByGroup(groupId);
+        return students.stream()
+                .map(student -> {
+                    Grade grade = getOrCreate(student.getId(), subjectId);
+                    return buildResponse(gradeRepository.save(grade));
+                })
+                .collect(Collectors.toList());
+    }
 
     public List<GradeResponse> getGradesBySubject(Long subjectId) {
         return gradeRepository.findAllBySubjectId(subjectId)
@@ -99,6 +113,15 @@ public class GradingService {
                                 ", subjectId: " + subjectId));
         return buildResponse(grade);
     }
+    @Cacheable(value = "external_students", key = "#studentId")
+    public StudentDto getStudentFromAuth(Long studentId) {
+        return authClient.getStudentById(studentId);
+    }
+
+    @Cacheable(value = "external_subjects", key = "#subjectId")
+    public SubjectDto getSubjectFromAcademic(Long subjectId) {
+        return academicClient.getSubjectById(subjectId);
+    }
 
 
 
@@ -109,14 +132,11 @@ public class GradingService {
         int totalCredits = 0;
 
         for (Grade g : grades) {
-            if (g.getExamScore() == null) continue;
-
+            if (g.getFinalScore() == null) continue; // yalnız tam qiyməti olan fənlər
             try {
-                SubjectDto subject = academicClient.getSubjectById(g.getSubjectId());
+                SubjectDto subject = externalDataService.getSubject(g.getSubjectId());
                 int credits = subject.getCredits();
-                double point = (g.getStatus() == GradeStatus.PASSED)
-                        ? toGpaPoint(g.getFinalScore()) : 0.0;
-                totalWeighted += point * credits;
+                totalWeighted += g.getFinalScore() * credits; // yekun bal × kredit
                 totalCredits += credits;
             } catch (Exception e) {
                 log.warn("GPA hesablanarkən subject alına bilmədi: {}", e.getMessage());
@@ -128,30 +148,20 @@ public class GradingService {
                 : 0.0;
 
         authClient.updateStudentGpa(studentId, gpa);
+        log.info("GPA yeniləndi - studentId: {}, gpa: {}", studentId, gpa);
     }
 
-    private double toGpaPoint(Double score) {
-        if (score == null) return 0.0;
-        if (score >= 91) return 4.0;
-        if (score >= 81) return 3.0;
-        if (score >= 71) return 2.0;
-        if (score >= 51) return 1.0;
-        return 0.0;
-    }
+
 
     private GradeResponse buildResponse(Grade grade) {
         GradeResponse r = new GradeResponse();
         r.setId(grade.getId());
         r.setStudentId(grade.getStudentId());
         r.setSubjectId(grade.getSubjectId());
-
-
         r.setActivity(grade.getActivity());
         r.setMidterm(grade.getMidterm());
         r.setPresentation(grade.getPresentation());
         r.setIndependentWork(grade.getIndependentWork());
-
-
         r.setSemesterScore(grade.getSemesterScore());
         r.setExamScore(grade.getExamScore());
         r.setFinalScore(grade.getFinalScore());
@@ -160,15 +170,16 @@ public class GradingService {
 
 
         try {
-            StudentDto student = authClient.getStudentById(grade.getStudentId());
+            StudentDto student = externalDataService.getStudent(grade.getStudentId());
             r.setStudentName(student.getFirstName() + " " + student.getLastName());
         } catch (Exception ignored) {}
 
         try {
-            SubjectDto subject = academicClient.getSubjectById(grade.getSubjectId());
+            SubjectDto subject = externalDataService.getSubject(grade.getSubjectId());
             r.setSubjectName(subject.getName());
         } catch (Exception ignored) {}
 
         return r;
     }
 }
+

@@ -45,9 +45,19 @@ public class Grade extends BaseEntity {
     }
 
     public GradeStatus getStatus() {
+
+        if (activity == null || midterm == null ||
+                presentation == null || independentWork == null) {
+            return GradeStatus.INCOMPLETE;
+        }
+
+
+        if (examScore == null) {
+            return GradeStatus.INCOMPLETE;
+        }
+
         double sem = getSemesterScore();
         if (sem < 17)             return GradeStatus.NOT_ALLOWED_TO_EXAM;
-        if (examScore == null)    return GradeStatus.PENDING_EXAM;
         if (examScore < 17)       return GradeStatus.FAILED_EXAM;
         if (getFinalScore() < 51) return GradeStatus.FAILED_TOTAL;
         return GradeStatus.PASSED;
@@ -55,9 +65,10 @@ public class Grade extends BaseEntity {
 
     public String getLetterGrade() {
         GradeStatus s = getStatus();
-        if (s == GradeStatus.NOT_ALLOWED_TO_EXAM) return "F";
+        if (s == GradeStatus.INCOMPLETE)          return null;
+        if (s == GradeStatus.NOT_ALLOWED_TO_EXAM) return null;
         if (s == GradeStatus.PENDING_EXAM)        return null;
-        if (s == GradeStatus.FAILED_EXAM)         return "F";
+        if (s == GradeStatus.FAILED_EXAM)         return null;
         if (s == GradeStatus.FAILED_TOTAL)        return "F";
 
         Double f = getFinalScore();

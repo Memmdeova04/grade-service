@@ -60,13 +60,11 @@ public class ExamResultConsumer {
         int totalCredits = 0;
 
         for (Grade g : grades) {
-            if (g.getExamScore() == null) continue;
+            if (g.getFinalScore() == null) continue;
             try {
                 SubjectDto subject = academicServiceClient.getSubjectById(g.getSubjectId());
                 int credits = subject.getCredits();
-                double point = (g.getStatus() == GradeStatus.PASSED)
-                        ? toGpaPoint(g.getFinalScore()) : 0.0;
-                totalWeighted += point * credits;
+                totalWeighted += g.getFinalScore() * credits;
                 totalCredits += credits;
             } catch (Exception e) {
                 log.warn("GPA hesablanarkən subject alına bilmədi: {}", e.getMessage());
@@ -81,12 +79,5 @@ public class ExamResultConsumer {
         log.info("GPA yeniləndi - studentId: {}, gpa: {}", studentId, gpa);
     }
 
-    private double toGpaPoint(Double score) {
-        if (score == null) return 0.0;
-        if (score >= 91) return 4.0;
-        if (score >= 81) return 3.0;
-        if (score >= 71) return 2.0;
-        if (score >= 51) return 1.0;
-        return 0.0;
-    }
+
 }

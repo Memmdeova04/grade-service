@@ -2,16 +2,25 @@ spring:
   application:
     name: grade-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/grade_db
+    url: jdbc:postgresql://localhost:5432/university?currentSchema=grade
     username: postgres
     password: postgres
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: grade
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: grade-group
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cache:
+    type: redis
 
 server:
   port: 8083
@@ -29,6 +38,5 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-  paths-to-exclude:
-    - /ws/**
+  paths-to-exclude: ["/ws/**"]
   default-produces-media-type: application/json

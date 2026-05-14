@@ -32,6 +32,17 @@ public class AppealService {
     private final AuthServiceClient authServiceClient;
     private final AppealMapper appealMapper;
 
+    private AppealResponse toResponseWithStudent(Appeal appeal) {
+        AppealResponse response = appealMapper.toResponse(appeal);
+        try {
+            StudentDto student = authServiceClient.getStudentById(appeal.getStudentId());
+            response.setStudentName(student.getFirstName() + " " + student.getLastName());
+        } catch (Exception e) {
+            response.setStudentName("Naməlum");
+        }
+        return response;
+    }
+
     @Transactional
     public AppealResponse createAppeal(CreateAppealRequest request) {
         Grade grade = gradeRepository.findById(request.getGradeId())
@@ -54,7 +65,7 @@ public class AppealService {
 
         log.info("Apellyasiya yaradıldı - studentId: {}, gradeId: {}",
                 request.getStudentId(), request.getGradeId());
-        return appealMapper.toResponse(appeal);
+        return toResponseWithStudent(appeal);
     }
 
 
@@ -99,22 +110,23 @@ public class AppealService {
         Appeal appeal = appealRepository.findById(appealId)
                 .orElseThrow(() -> new AppealNotFoundException(
                         "Apellyasiya tapılmadı, id: " + appealId));
-        return appealMapper.toResponse(appeal);
+        return toResponseWithStudent(appeal);
     }
 
     public List<AppealResponse> getAppealsByStudent(Long studentId) {
         return appealRepository.findByStudentId(studentId)
                 .stream()
-                .map(appealMapper::toResponse)
+                .map(this::toResponseWithStudent)
                 .collect(Collectors.toList());
     }
 
     public List<AppealResponse> getAppealsByGrade(Long gradeId) {
         return appealRepository.findByGradeId(gradeId)
                 .stream()
-                .map(appealMapper::toResponse)
+                .map(this::toResponseWithStudent)
                 .collect(Collectors.toList());
     }
+
 
     public List<AppealMessageResponse> getMessages(Long appealId) {
         if (!appealRepository.existsById(appealId)) {
@@ -129,7 +141,7 @@ public class AppealService {
     public List<AppealResponse> getOpenAppeals() {
         return appealRepository.findByStatus(AppealStatus.OPEN)
                 .stream()
-                .map(appealMapper::toResponse)
+                .map(this::toResponseWithStudent)
                 .collect(Collectors.toList());
     }
 }

@@ -43,7 +43,7 @@ public class AppealChatService {
         msg.setMessage(dto.getMessage());
         msg = appealMessageRepository.save(msg);
 
-        // Hər iki tərəfə broadcast et
+
         AppealMessageResponse response = appealMapper.toMessageResponse(msg);
         messagingTemplate.convertAndSend(
                 "/topic/appeal." + dto.getAppealId(), response);

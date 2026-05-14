@@ -1,12 +1,18 @@
 package org.example.gradeservice.dto;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.experimental.FieldDefaults;
+
+import java.io.Serializable;
 
 @Data
-public class StudentDto {
-    private Long id;
-    private String firstName;
-    private String lastName;
-    private Long userId;
-    private String email;
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class StudentDto implements Serializable {
+    static final long serialVersionUID = 1L;
+    Long id;
+    String firstName;
+    String lastName;
+    Long userId;
+    String email;
 }

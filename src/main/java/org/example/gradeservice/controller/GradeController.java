@@ -33,6 +33,13 @@ public class GradeController {
             @Valid @RequestBody PresentationScoreRequest request) {
         return ResponseEntity.ok(gradingService.updatePresentation(request));
     }
+    @PostMapping("/initialize")
+    public ResponseEntity<List<GradeResponse>> initializeGrades(
+            @RequestParam Long subjectId,
+            @RequestParam Long groupId) {
+        return ResponseEntity.ok(gradingService.initializeGradesForGroup(subjectId, groupId));
+    }
+
 
     @PutMapping("/independent-work")
     public ResponseEntity<GradeResponse> updateIndependentWork(

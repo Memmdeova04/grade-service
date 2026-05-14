@@ -12,15 +12,15 @@ public class AppealMessage extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appeal_id")
-    private Appeal appeal;
+    Appeal appeal;
 
     @Column(nullable = false)
-    private Long senderId;
+    Long senderId;
 
 
     @Column(nullable = false)
-    private String senderRole;
+    String senderRole;
 
 
-    private String message;
+    String message;
 }

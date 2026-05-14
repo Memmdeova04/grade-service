@@ -1,19 +1,17 @@
 package org.example.gradeservice.security;
 
-
-
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,10 +24,13 @@ import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")
     private String secret;
+
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
@@ -50,42 +51,41 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
+        Claims claims;
         try {
-            Claims claims = Jwts.parserBuilder()
+            claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-
-            Long userId = Long.valueOf(claims.getSubject());
-            String role = claims.get("role", String.class);
-            String username = claims.get("username", String.class);
-
-            request.setAttribute("userId", userId);
-            request.setAttribute("role", role);
-            request.setAttribute("username", username);
-
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userId, token,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role)));
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
         } catch (ExpiredJwtException e) {
             log.warn("Token vaxtı keçib: {}", e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
-        } catch (UnsupportedJwtException | MalformedJwtException e) {
-            log.warn("Token yanlışdır: {}", e.getMessage());
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        } catch (IllegalArgumentException e) {
-            log.warn("Token boşdur: {}", e.getMessage());
+        } catch (Exception e) {
+            log.warn("Token xətası: {}", e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }
 
+        String jti = claims.getId();
+        if (Boolean.TRUE.equals(redisTemplate.hasKey("blacklist:" + jti))) {
+            log.warn("Blacklist-də olan tokenlə Grade Service-ə giriş cəhdi!");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
+        Long userId = Long.valueOf(claims.getSubject());
+        String role = claims.get("role", String.class);
+
+        request.setAttribute("userId", userId);
+        request.setAttribute("role", role);
+
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(userId, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
     }
 }

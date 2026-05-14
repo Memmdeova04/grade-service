@@ -2,15 +2,18 @@ package org.example.gradeservice.dto;
 
 
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.experimental.FieldDefaults;
 
 @Data
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreateGradeRequest {
-    private Long studentId;
-    private Long subjectId;
-    private Double activity;
-    private Double independentWork;
-    private Double presentation;
-    private Double colloquium;
-    private Double examScore;
+    Long studentId;
+    Long subjectId;
+    Double activity;
+    Double independentWork;
+    Double presentation;
+    Double colloquium;
+    Double examScore;
 }

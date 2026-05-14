@@ -2,15 +2,19 @@ package org.example.gradeservice.dto;
 
 
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.experimental.FieldDefaults;
+
 import java.time.LocalDateTime;
 
 @Data
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class AppealMessageResponse {
-    private Long id;
-    private Long appealId;
-    private Long senderId;
-    private String message;
-    private String senderRole;
-    private LocalDateTime createdAt;
+    Long id;
+    Long appealId;
+    Long senderId;
+    String message;
+    String senderRole;
+    LocalDateTime createdAt;
 }

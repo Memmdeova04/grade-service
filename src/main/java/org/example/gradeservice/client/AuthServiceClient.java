@@ -19,6 +19,8 @@ public interface AuthServiceClient {
 
     @PutMapping("/api/auth/students/{id}/gpa")
     void updateStudentGpa(@PathVariable Long id, @RequestParam Double gpa);
-
-
+    @GetMapping("/api/auth/students/group/{groupId}")
+    java.util.List<StudentDto> getStudentsByGroup(@PathVariable("groupId") Long groupId);
 }
+
+
